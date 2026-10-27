@@ -10,7 +10,7 @@ app = FastAPI()
 
 # === НАСТРОЙКИ АВТОРИЗАЦИИ ===
 # ВАЖНО: Замените 123456789 на ваш реальный ID из бота @userinfobot
-ALLOWED_TELEGRAM_IDS = [123456789] 
+ALLOWED_TELEGRAM_IDS = [8902982456] 
 
 # Ссылка на базу данных (Render подставит её автоматически из настроек)
 DATABASE_URL = os.environ.get("DATABASE_URL")
