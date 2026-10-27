@@ -77,54 +77,102 @@
         .p-excused { background: var(--blue); height: 100%; }
         .p-late { background: var(--orange); height: 100%; }
         .p-absent { background: var(--red); height: 100%; }
+        
+        .error-msg { text-align: center; padding: 50px 20px; color: var(--red); font-size: 18px; }
     </style>
 </head>
 <body>
-    <div class="header">
-        <div class="header-title" onclick="editGroupName()">
-            <span>Группа</span>
-            <div id="group-name">Загрузка...</div>
-        </div>
+    <!-- Блок ошибки доступа -->
+    <div id="error-block" class="error-msg" style="display: none;">
+        ⛔ Доступ запрещен.<br>Это приложение только для старосты.
     </div>
 
-    <div id="tab-mark" class="tab active">
-        <div class="dashboard">
-            <div class="dash-box present"><span class="dash-num" id="d-present" style="color:var(--green)">0</span><span class="dash-label">На паре</span></div>
-            <div class="dash-box late"><span class="dash-num" id="d-late" style="color:var(--orange)">0</span><span class="dash-label">Опоздали</span></div>
-            <div class="dash-box absent"><span class="dash-num" id="d-absent" style="color:var(--red)">0</span><span class="dash-label">Не придут</span></div>
-            <div class="dash-box silent"><span class="dash-num" id="d-silent" style="color:#ccc">0</span><span class="dash-label">Молчат</span></div>
+    <div id="app-content" style="display: none;">
+        <div class="header">
+            <div class="header-title" onclick="editGroupName()">
+                <span>Группа</span>
+                <div id="group-name">Загрузка...</div>
+            </div>
         </div>
 
-        <div class="add-form">
-            <input type="text" id="new-name" placeholder="Фамилия и Имя" />
-            <button onclick="addStudent()">+</button>
+        <div id="tab-mark" class="tab active">
+            <div class="dashboard">
+                <div class="dash-box present"><span class="dash-num" id="d-present" style="color:var(--green)">0</span><span class="dash-label">На паре</span></div>
+                <div class="dash-box late"><span class="dash-num" id="d-late" style="color:var(--orange)">0</span><span class="dash-label">Опоздали</span></div>
+                <div class="dash-box absent"><span class="dash-num" id="d-absent" style="color:var(--red)">0</span><span class="dash-label">Не придут</span></div>
+                <div class="dash-box silent"><span class="dash-num" id="d-silent" style="color:#ccc">0</span><span class="dash-label">Молчат</span></div>
+            </div>
+
+            <div class="add-form">
+                <input type="text" id="new-name" placeholder="Фамилия и Имя" />
+                <button onclick="addStudent()">+</button>
+            </div>
+
+            <div class="date-picker">
+                <span>Дата:</span>
+                <input type="date" id="mark-date" onchange="loadData()">
+            </div>
+
+            <div id="list"></div>
         </div>
 
-        <div class="date-picker">
-            <span>Дата:</span>
-            <input type="date" id="mark-date" onchange="loadData()">
+        <div id="tab-stats" class="tab">
+            <div class="stats-card" style="display:flex; justify-content:space-around;">
+                <div style="text-align:center"><span style="font-size:20px; font-weight:bold;" id="st-total-stud">0</span><br><span style="font-size:11px; color:#888">Студентов</span></div>
+                <div style="text-align:center"><span style="font-size:20px; font-weight:bold;" id="st-total-days">0</span><br><span style="font-size:11px; color:#888">Дней занятий</span></div>
+            </div>
+            <div id="stats-list"></div>
         </div>
 
-        <div id="list"></div>
-    </div>
-
-    <div id="tab-stats" class="tab">
-        <div class="stats-card" style="display:flex; justify-content:space-around;">
-            <div style="text-align:center"><span style="font-size:20px; font-weight:bold;" id="st-total-stud">0</span><br><span style="font-size:11px; color:#888">Студентов</span></div>
-            <div style="text-align:center"><span style="font-size:20px; font-weight:bold;" id="st-total-days">0</span><br><span style="font-size:11px; color:#888">Дней занятий</span></div>
+        <div class="nav-bar">
+            <div class="nav-item active" onclick="switchTab('mark', this)">Отметки</div>
+            <div class="nav-item" onclick="switchTab('stats', this)">График</div>
         </div>
-        <div id="stats-list"></div>
-    </div>
-
-    <div class="nav-bar">
-        <div class="nav-item active" onclick="switchTab('mark', this)">Отметки</div>
-        <div class="nav-item" onclick="switchTab('stats', this)">График</div>
     </div>
 
     <script>
         const tg = window.Telegram.WebApp;
         tg.ready(); tg.expand();
         
+        // Получаем ID пользователя из Telegram
+        const user = tg.initDataUnsafe?.user;
+        const userId = user ? user.id : null;
+
+        async function checkAuth() {
+            if (!userId) {
+                document.getElementById('error-block').style.display = 'block';
+                return false;
+            }
+            
+            try {
+                // Отправляем ID на сервер для проверки
+                const res = await fetch('/api/group', {
+                    headers: { 'Authorization': `user_id:${userId}` }
+                });
+                
+                // Если сервер вернул ошибку 403 (Forbidden) или 401 (Unauthorized)
+                if (res.status === 403 || res.status === 401) {
+                    document.getElementById('error-block').style.display = 'block';
+                    return false;
+                }
+                
+                document.getElementById('app-content').style.display = 'block';
+                return true;
+                
+            } catch (e) {
+                document.getElementById('error-block').style.display = 'block';
+                return false;
+            }
+        }
+
+        async function initApp() {
+            const isAuth = await checkAuth();
+            if (isAuth) {
+                loadGroup();
+                loadData();
+            }
+        }
+
         const listEl = document.getElementById('list');
         const dateInput = document.getElementById('mark-date');
         let allStudents = [];
@@ -269,8 +317,7 @@
             });
         }
 
-        loadGroup();
-        loadData();
+        initApp();
     </script>
 </body>
 </html>
