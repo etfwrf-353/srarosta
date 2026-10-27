@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Староста</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        :root {
+            --bg: #0e0e10; --card: #1c1c1e; --text: #fff;
+            --green: #34c759; --red: #ff3b30; --blue: #007aff; --orange: #ff9500; --gray: #8e8e93;
+            --input: #2c2c2e;
+        }
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; 
+            background: var(--bg); color: var(--text); 
+            margin: 0; padding: 16px; padding-top: 70px; padding-bottom: 70px;
+        }
+        .header {
+            position: fixed; top: 0; left: 0; right: 0; background: rgba(14, 14, 16, 0.95);
+            backdrop-filter: blur(10px); padding: 16px; z-index: 10; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #333;
+        }
+        .header-title { font-size: 20px; font-weight: bold; cursor: pointer; }
+        .header-title span { font-size: 12px; color: #888; display: block; font-weight: normal; }
+
+        .nav-bar {
+            position: fixed; bottom: 0; left: 0; right: 0; background: rgba(14, 14, 16, 0.95);
+            backdrop-filter: blur(10px); display: flex; justify-content: space-around; padding: 12px 0; border-top: 1px solid #333; z-index: 10;
+        }
+        .nav-item { color: #888; font-size: 14px; font-weight: bold; cursor: pointer; padding: 5px 15px; border-radius: 8px;}
+        .nav-item.active { color: var(--text); background: #2c2c2e; }
+
+        .tab { display: none; }
+        .tab.active { display: block; }
+
+        .dashboard {
+            background: linear-gradient(135deg, #2c2c2e 0%, #1c1c1e 100%);
+            border-radius: 16px; padding: 15px; margin-bottom: 20px; border: 1px solid #333;
+            display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+        }
+        .dash-box { padding: 10px; border-radius: 10px; text-align: center; }
+        .dash-box.present { background: rgba(52, 199, 89, 0.1); border: 1px solid rgba(52, 199, 89, 0.3); }
+        .dash-box.late { background: rgba(255, 149, 0, 0.1); border: 1px solid rgba(255, 149, 0, 0.3); }
+        .dash-box.absent { background: rgba(255, 59, 48, 0.1); border: 1px solid rgba(255, 59, 48, 0.3); }
+        .dash-box.silent { background: rgba(142, 142, 147, 0.1); border: 1px solid rgba(142, 142, 147, 0.3); }
+        .dash-num { font-size: 24px; font-weight: bold; display: block; }
+        .dash-label { font-size: 11px; color: #ccc; text-transform: uppercase; }
+
+        .add-form { display: flex; gap: 10px; margin-bottom: 15px; }
+        .add-form input { flex: 1; padding: 12px; border-radius: 10px; border: none; background: var(--input); color: white; font-size: 16px; }
+        .add-form button { padding: 12px 20px; border-radius: 10px; border: none; background: var(--blue); color: white; font-weight: bold; cursor: pointer;}
+
+        .date-picker { background: var(--card); padding: 10px; border-radius: 10px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; }
+        .date-picker input { background: var(--input); border: none; color: white; padding: 5px; border-radius: 5px; font-size: 16px; }
+
+        .card { background: var(--card); border-radius: 12px; padding: 12px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; }
+        .info { flex: 1; margin-left: 10px; overflow: hidden; }
+        .name { font-weight: 500; font-size: 14px; margin-bottom: 4px; white-space: nowrap; text-overflow: ellipsis; overflow: hidden;}
+        .status-text { font-size: 12px; color: #888; }
+        
+        .move-btns { display: flex; flex-direction: column; gap: 2px; }
+        .move-btn { background: transparent; border: none; color: #555; font-size: 14px; cursor: pointer; padding: 0 5px;}
+        .move-btn:active { color: var(--blue); }
+
+        .actions { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; width: 110px; margin-left: 10px;}
+        .btn { border: none; border-radius: 6px; padding: 6px; font-size: 11px; font-weight: 600; cursor: pointer; color: white; text-align: center;}
+        .btn-green { background: var(--green); }
+        .btn-orange { background: var(--orange); }
+        .btn-red { background: var(--red); }
+        .btn-gray { background: var(--gray); }
+        .btn-del { background: transparent; color: #666; font-size: 16px; padding: 0 5px; border: none; cursor: pointer; margin-left: 5px;}
+
+        .stats-card { background: var(--card); border-radius: 12px; padding: 16px; margin-bottom: 12px; }
+        .stats-header { display: flex; justify-content: space-between; margin-bottom: 8px; }
+        .progress-bar { height: 8px; background: #333; border-radius: 4px; display: flex; overflow: hidden; margin-top: 8px; }
+        .p-present { background: var(--green); height: 100%; }
+        .p-excused { background: var(--blue); height: 100%; }
+        .p-late { background: var(--orange); height: 100%; }
+        .p-absent { background: var(--red); height: 100%; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="header-title" onclick="editGroupName()">
+            <span>Группа</span>
+            <div id="group-name">Загрузка...</div>
+        </div>
+    </div>
+
+    <div id="tab-mark" class="tab active">
+        <div class="dashboard">
+            <div class="dash-box present"><span class="dash-num" id="d-present" style="color:var(--green)">0</span><span class="dash-label">На паре</span></div>
+            <div class="dash-box late"><span class="dash-num" id="d-late" style="color:var(--orange)">0</span><span class="dash-label">Опоздали</span></div>
+            <div class="dash-box absent"><span class="dash-num" id="d-absent" style="color:var(--red)">0</span><span class="dash-label">Не придут</span></div>
+            <div class="dash-box silent"><span class="dash-num" id="d-silent" style="color:#ccc">0</span><span class="dash-label">Молчат</span></div>
+        </div>
+
+        <div class="add-form">
+            <input type="text" id="new-name" placeholder="Фамилия и Имя" />
+            <button onclick="addStudent()">+</button>
+        </div>
+
+        <div class="date-picker">
+            <span>Дата:</span>
+            <input type="date" id="mark-date" onchange="loadData()">
+        </div>
+
+        <div id="list"></div>
+    </div>
+
+    <div id="tab-stats" class="tab">
+        <div class="stats-card" style="display:flex; justify-content:space-around;">
+            <div style="text-align:center"><span style="font-size:20px; font-weight:bold;" id="st-total-stud">0</span><br><span style="font-size:11px; color:#888">Студентов</span></div>
+            <div style="text-align:center"><span style="font-size:20px; font-weight:bold;" id="st-total-days">0</span><br><span style="font-size:11px; color:#888">Дней занятий</span></div>
+        </div>
+        <div id="stats-list"></div>
+    </div>
+
+    <div class="nav-bar">
+        <div class="nav-item active" onclick="switchTab('mark', this)">Отметки</div>
+        <div class="nav-item" onclick="switchTab('stats', this)">График</div>
+    </div>
+
+    <script>
+        const tg = window.Telegram.WebApp;
+        tg.ready(); tg.expand();
+        
+        const listEl = document.getElementById('list');
+        const dateInput = document.getElementById('mark-date');
+        let allStudents = [];
+        dateInput.value = new Date().toISOString().split('T')[0];
+
+        function switchTab(tab, el) {
+            document.querySelectorAll('.tab').forEach(e => e.classList.remove('active'));
+            document.querySelectorAll('.nav-item').forEach(e => e.classList.remove('active'));
+            document.getElementById('tab-' + tab).classList.add('active');
+            el.classList.add('active');
+            if (tab === 'mark') loadData(); else loadStats();
+        }
+
+        async function loadGroup() {
+            const res = await fetch('/api/group');
+            const data = await res.json();
+            document.getElementById('group-name').innerText = data.name;
+        }
+
+        async function editGroupName() {
+            const newName = prompt("Название группы:", document.getElementById('group-name').innerText);
+            if (newName) {
+                await fetch('/api/group', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: newName.trim() }) });
+                loadGroup();
+            }
+        }
+
+        async function loadData() {
+            const resS = await fetch('/api/students');
+            allStudents = await resS.json();
+            
+            const resA = await fetch(`/api/attendance/${dateInput.value}`);
+            const att = await resA.json();
+            
+            let counts = { present: 0, late: 0, absent: 0, silent: 0 };
+            listEl.innerHTML = '';
+            
+            allStudents.forEach((s, index) => {
+                const status = att[s.id] || 'none';
+                if (counts[status] !== undefined) counts[status]++;
+
+                let statusLabel = 'Не отмечен';
+                if (status === 'present') statusLabel = '<span style="color:var(--green)">Был</span>';
+                if (status === 'late') statusLabel = '<span style="color:var(--orange)">Опоздал</span>';
+                if (status === 'absent') statusLabel = '<span style="color:var(--red)">Нет</span>';
+                if (status === 'silent') statusLabel = '<span style="color:#ccc">Молчит</span>';
+
+                const card = document.createElement('div');
+                card.className = 'card';
+                card.innerHTML = `
+                    <div class="move-btns">
+                        <button class="move-btn" onclick="move(${index}, -1)">▲</button>
+                        <button class="move-btn" onclick="move(${index}, 1)">▼</button>
+                    </div>
+                    <div class="info">
+                        <div class="name">${s.name}</div>
+                        <div class="status-text">${statusLabel}</div>
+                    </div>
+                    <div class="actions">
+                        <button class="btn btn-green" onclick="mark(${s.id}, 'present')">Был</button>
+                        <button class="btn btn-orange" onclick="mark(${s.id}, 'late')">Опоз.</button>
+                        <button class="btn btn-red" onclick="mark(${s.id}, 'absent')">Н</button>
+                        <button class="btn btn-gray" onclick="mark(${s.id}, 'silent')">Молч.</button>
+                    </div>
+                    <button class="btn-del" onclick="del(${s.id}, '${s.name.replace(/'/g, "\\'")}')">✕</button>
+                `;
+                listEl.appendChild(card);
+            });
+
+            document.getElementById('d-present').innerText = counts.present;
+            document.getElementById('d-late').innerText = counts.late;
+            document.getElementById('d-absent').innerText = counts.absent;
+            document.getElementById('d-silent').innerText = counts.silent;
+        }
+
+        async function addStudent() {
+            const input = document.getElementById('new-name');
+            if (!input.value.trim()) return;
+            await fetch('/api/add_student', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: input.value.trim() }) });
+            input.value = '';
+            loadData();
+        }
+
+        async function del(id, name) {
+            if (confirm(`Удалить "${name}"?`)) {
+                await fetch('/api/delete_student', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ student_id: id }) });
+                loadData();
+            }
+        }
+
+        async function mark(id, status) {
+            await fetch('/api/mark', { 
+                method: 'POST', headers: { 'Content-Type': 'application/json' }, 
+                body: JSON.stringify({ student_id: id, status: status, date: dateInput.value }) 
+            });
+            tg.HapticFeedback.impactOccurred('light');
+            loadData();
+        }
+
+        async function move(index, dir) {
+            const newIndex = index + dir;
+            if (newIndex < 0 || newIndex >= allStudents.length) return;
+            const temp = allStudents[index];
+            allStudents[index] = allStudents[newIndex];
+            allStudents[newIndex] = temp;
+            loadData();
+            await fetch('/api/reorder', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ student_ids: allStudents.map(s => s.id) })
+            });
+        }
+
+        async function loadStats() {
+            const res = await fetch('/api/stats');
+            const data = await res.json();
+            
+            document.getElementById('st-total-stud').innerText = data.stats.length;
+            document.getElementById('st-total-days').innerText = data.total_days;
+
+            const list = document.getElementById('stats-list');
+            list.innerHTML = '';
+            data.stats.forEach(s => {
+                const total = s.total_days || 1;
+                list.innerHTML += `
+                    <div class="stats-card">
+                        <div class="stats-header">
+                            <div style="font-weight:bold; font-size:14px;">${s.name}</div>
+                            <div style="font-size:11px; text-align:right; color:#888">
+                                ${s.absent > 0 ? `<span style="color:var(--red)">${s.absent} проп.</span> ` : ''}
+                                ${s.excused > 0 ? `<span style="color:var(--blue)">${s.excused} уваж.</span> ` : ''}
+                                <br> Был ${s.present} из ${s.total_days}
+                            </div>
+                        </div>
+                        <div class="progress-bar">
+                            <div class="p-present" style="width: ${(s.present/total)*100}%"></div>
+                            <div class="p-excused" style="width: ${(s.excused/total)*100}%"></div>
+                            <div class="p-late" style="width: ${(s.late/total)*100}%"></div>
+                            <div class="p-absent" style="width: ${(s.absent/total)*100}%"></div>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        loadGroup();
+        loadData();
+    </script>
+</body>
+</html>
